@@ -2,6 +2,7 @@
 
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
+#include <QDBusArgument>
 #include <QDBusInterface>
 #include <QDBusReply>
 #include <QDBusVariant>
@@ -10,6 +11,7 @@
 #include <algorithm>
 #include <optional>
 #include <ranges>
+#include <string_view>
 #include <utility>
 
 namespace {
@@ -53,6 +55,13 @@ bool AcceptsMedia(const anisthesia::media_proc_t& media_proc,
 
 namespace anisthesia::linux::mpris {
 
+MediaState MediaStateFromPlaybackStatus(const std::string_view playback_status) {
+  if (playback_status == "Playing") return MediaState::Playing;
+  if (playback_status == "Paused") return MediaState::Paused;
+  if (playback_status == "Stopped") return MediaState::Stopped;
+  return MediaState::Unknown;
+}
+
 bool GetResults(const std::vector<Player>& players, media_proc_t media_proc,
                 std::vector<Result>& results) {
   results.clear();
@@ -68,9 +77,14 @@ bool GetResults(const std::vector<Player>& players, media_proc_t media_proc,
     if (!service.startsWith("org.mpris.MediaPlayer2.")) continue;
 
     const auto playback_status = GetMprisProperty(service, "PlaybackStatus").toString();
-    if (playback_status != "Playing") continue;
+    const auto media_state = MediaStateFromPlaybackStatus(playback_status.toStdString());
+    if (media_state != MediaState::Playing && media_state != MediaState::Paused) continue;
 
-    const auto metadata = GetMprisProperty(service, "Metadata").toMap();
+    const auto metadata_property = GetMprisProperty(service, "Metadata");
+    auto metadata = metadata_property.toMap();
+    if (metadata.isEmpty() && metadata_property.canConvert<QDBusArgument>()) {
+      metadata = qdbus_cast<QVariantMap>(metadata_property.value<QDBusArgument>());
+    }
     const auto media_info = MediaInfoFromMetadata(metadata);
     if (!media_info || !AcceptsMedia(media_proc, *media_info)) continue;
 
@@ -90,7 +104,7 @@ bool GetResults(const std::vector<Player>& players, media_proc_t media_proc,
     }
 
     Media media;
-    media.state = MediaState::Playing;
+    media.state = media_state;
     media.information = {*media_info};
 
     results.push_back({.player = std::move(player), .media = {std::move(media)}});

@@ -1,4 +1,5 @@
 #include <anisthesia.hpp>
+#include <anisthesia/linux_mpris.hpp>
 #include <anisthesia/linux_process.hpp>
 #include <anisthesia/util.hpp>
 
@@ -126,6 +127,18 @@ void LinuxProcessCommandLineFindsVideoFiles() {
           "Linux process backend should reject subtitle files");
 }
 
+void LinuxMprisMapsCurrentTrackStates() {
+  Require(anisthesia::linux::mpris::MediaStateFromPlaybackStatus("Playing") ==
+              anisthesia::MediaState::Playing,
+          "Linux MPRIS backend should accept playing media");
+  Require(anisthesia::linux::mpris::MediaStateFromPlaybackStatus("Paused") ==
+              anisthesia::MediaState::Paused,
+          "Linux MPRIS backend should keep paused media detectable");
+  Require(anisthesia::linux::mpris::MediaStateFromPlaybackStatus("Stopped") ==
+              anisthesia::MediaState::Stopped,
+          "Linux MPRIS backend should map stopped media");
+}
+
 void LinuxProcessBackendFindsCurrentProcess(const char* executable, const char* video_path) {
   std::vector<anisthesia::Result> results;
   anisthesia::Player player;
@@ -154,6 +167,7 @@ int main(int argc, char* argv[]) {
   UtilitiesTrimAndComparePredictably();
   PlatformBridgeHasStableEmptyResultContract();
   LinuxProcessCommandLineFindsVideoFiles();
+  LinuxMprisMapsCurrentTrackStates();
   if (argc > 1) {
     LinuxProcessBackendFindsCurrentProcess(argv[0], argv[1]);
   }
