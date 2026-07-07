@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, for example 1.0.1
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DANISTHESIA_BUILD_TESTS=ON -DANISTHESIA_ENABLE_LINUX_MPRIS=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Bump CMake project version
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          version = os.environ["RELEASE_VERSION"]
+          path = Path("CMakeLists.txt")
+          text = path.read_text()
+          updated = re.sub(
+              r"(project\(anisthesia\s+VERSION\s+)[0-9]+\.[0-9]+\.[0-9]+",
+              rf"\g<1>{version}",
+              text,
+              count=1,
+          )
+          if updated == text:
+              raise SystemExit("Could not find project version")
+          path.write_text(updated)
+          PY
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CMakeLists.txt
+          git commit -m "Release v${{ inputs.version }}"
+          git tag "v${{ inputs.version }}"
+          git push
+          git push origin "v${{ inputs.version }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          generate_release_notes: true

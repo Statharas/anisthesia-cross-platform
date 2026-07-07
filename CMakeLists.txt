@@ -11,12 +11,20 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(ANISTHESIA_BUILD_TESTS "Build Anisthesia tests" ${PROJECT_IS_TOP_LEVEL})
+option(ANISTHESIA_ENABLE_LINUX_MPRIS "Build the Linux MPRIS backend when Qt DBus is available" ON)
+
+if (ANISTHESIA_ENABLE_LINUX_MPRIS AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	find_package(Qt6 QUIET COMPONENTS Core DBus)
+endif()
+
 add_library(anisthesia INTERFACE)
 
 target_include_directories(anisthesia INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
 
 target_sources(anisthesia INTERFACE
 	src/matroska.cpp
+	src/platform.cpp
 	src/player.cpp
 	src/util.cpp
 )
@@ -30,4 +38,18 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		src/win_util.cpp
 		src/win_windows.cpp
 	)
+endif()
+
+if (ANISTHESIA_ENABLE_LINUX_MPRIS AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" AND TARGET Qt6::DBus)
+	target_sources(anisthesia INTERFACE
+		src/linux_mpris.cpp
+	)
+
+	target_compile_definitions(anisthesia INTERFACE ANISTHESIA_HAS_LINUX_MPRIS)
+	target_link_libraries(anisthesia INTERFACE Qt6::Core Qt6::DBus)
+endif()
+
+if (ANISTHESIA_BUILD_TESTS)
+	enable_testing()
+	add_subdirectory(test)
 endif()

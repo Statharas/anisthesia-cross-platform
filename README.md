@@ -1,9 +1,10 @@
 # Anisthesia
 
-*Anisthesia* is a media detection library for Windows.
+*Anisthesia* is a media detection library.
 
 - Detects running media players and web browsers
 - Retrieves information about the currently playing video
+- Supports platform-specific backends behind a shared result API
 
 ## Usage
 
@@ -24,8 +25,8 @@ int main() {
     return true;  // Accept all media
   };
 
-  std::vector<anisthesia::win::Result> results;
-  if (!anisthesia::win::GetResults(players, media_proc, results)) {
+  std::vector<anisthesia::Result> results;
+  if (!anisthesia::GetResults(players, media_proc, results)) {
     return 1;
   }
 
@@ -52,6 +53,18 @@ int main() {
   return 0;
 }
 ```
+
+## Building and testing
+
+```sh
+cmake -S . -B build -DANISTHESIA_BUILD_TESTS=ON
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
+
+On Linux, the MPRIS backend is built when Qt DBus is available. Pass
+`-DANISTHESIA_ENABLE_LINUX_MPRIS=OFF` to test the portable core without that
+optional backend.
 
 ## License
 
