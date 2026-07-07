@@ -30,6 +30,11 @@ target_sources(anisthesia INTERFACE
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	target_compile_definitions(anisthesia INTERFACE
+		_UNICODE
+		UNICODE
+	)
+
 	target_sources(anisthesia INTERFACE
 		src/win_open_files.cpp
 		src/win_platform.cpp
