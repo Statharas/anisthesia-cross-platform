@@ -28,13 +28,13 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build qt6-base-dev
+          sudo apt-get install -y qt6-base-dev
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DANISTHESIA_BUILD_TESTS=ON
+        run: cmake -S . -B build -DANISTHESIA_BUILD_TESTS=ON
 
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build --config Debug --parallel
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build -C Debug --output-on-failure
