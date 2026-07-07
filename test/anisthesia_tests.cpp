@@ -1,7 +1,10 @@
 #include <anisthesia.hpp>
+#include <anisthesia/linux_process.hpp>
 #include <anisthesia/util.hpp>
 
+#include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -73,6 +76,15 @@ void ParsePlayersDataRejectsUnknownSections() {
           "unknown sections should be rejected");
 }
 
+void ParseBundledPlayersFile() {
+  std::vector<anisthesia::Player> players;
+  Require(anisthesia::ParsePlayersFile(ANISTHESIA_PLAYERS_PATH, players),
+          "bundled players.anisthesia should parse");
+  Require(std::any_of(players.begin(), players.end(),
+                      [](const auto& player) { return player.name == "Haruna"; }),
+          "bundled players.anisthesia should include Haruna");
+}
+
 void UtilitiesTrimAndComparePredictably() {
   std::string value = "\tExample\r\n";
   Require(anisthesia::detail::util::TrimLeft(value, "\t"),
@@ -95,13 +107,55 @@ void PlatformBridgeHasStableEmptyResultContract() {
   Require(results.empty(), "platform bridge should leave no empty-input results");
 }
 
+void LinuxProcessCommandLineFindsVideoFiles() {
+  const auto media = anisthesia::linux::process::MediaFromCommandLine({
+      "/usr/bin/haruna",
+      "/home/user/Downloads/[SubsPlease] Fate Strange Fake - 01v2 (1080p) [7708674D].mkv",
+      "--fullscreen",
+      "/home/user/Downloads/not-video.srt",
+  });
+
+  Require(media.size() == 1, "Linux process backend should find one video argument");
+  Require(media.front().type == anisthesia::MediaInfoType::File,
+          "Linux process backend should report argv media as a file");
+  Require(media.front().value.ends_with("[7708674D].mkv"),
+          "Linux process backend changed detected video path");
+  Require(anisthesia::linux::process::IsVideoPath("episode.webm"),
+          "Linux process backend should accept webm files");
+  Require(!anisthesia::linux::process::IsVideoPath("subtitle.ass"),
+          "Linux process backend should reject subtitle files");
+}
+
+void LinuxProcessBackendFindsCurrentProcess(const char* executable, const char* video_path) {
+  std::vector<anisthesia::Result> results;
+  anisthesia::Player player;
+  player.name = "Anisthesia test";
+  player.executables.push_back(std::filesystem::path(executable).filename().string());
+  player.strategies.push_back(anisthesia::Strategy::OpenFiles);
+
+  const auto accepts_all_media = [](const anisthesia::MediaInfo&) { return true; };
+  Require(anisthesia::linux::process::GetResults({player}, accepts_all_media, results),
+          "Linux process backend should find the current process video argument");
+  Require(!results.empty(), "Linux process backend returned no current-process results");
+  Require(results.front().player.name == "Anisthesia test",
+          "Linux process backend changed matched player");
+  Require(!results.front().media.empty(), "Linux process backend returned no media");
+  Require(results.front().media.front().information.front().value == video_path,
+          "Linux process backend changed current-process video argument");
+}
+
 }  // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
   ParsePlayersDataReadsAllSections();
   ParsePlayersDataRejectsInvalidIndentation();
   ParsePlayersDataRejectsUnknownSections();
+  ParseBundledPlayersFile();
   UtilitiesTrimAndComparePredictably();
   PlatformBridgeHasStableEmptyResultContract();
+  LinuxProcessCommandLineFindsVideoFiles();
+  if (argc > 1) {
+    LinuxProcessBackendFindsCurrentProcess(argv[0], argv[1]);
+  }
   return EXIT_SUCCESS;
 }

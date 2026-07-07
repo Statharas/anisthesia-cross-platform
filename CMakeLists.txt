@@ -13,6 +13,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(ANISTHESIA_BUILD_TESTS "Build Anisthesia tests" ${PROJECT_IS_TOP_LEVEL})
 option(ANISTHESIA_ENABLE_LINUX_MPRIS "Build the Linux MPRIS backend when Qt DBus is available" ON)
+option(ANISTHESIA_ENABLE_LINUX_PROCESS "Build the Linux process command-line backend" ON)
 
 if (ANISTHESIA_ENABLE_LINUX_MPRIS AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	find_package(Qt6 QUIET COMPONENTS Core DBus)
@@ -52,6 +53,14 @@ if (ANISTHESIA_ENABLE_LINUX_MPRIS AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" A
 
 	target_compile_definitions(anisthesia INTERFACE ANISTHESIA_HAS_LINUX_MPRIS)
 	target_link_libraries(anisthesia INTERFACE Qt6::Core Qt6::DBus)
+endif()
+
+if (ANISTHESIA_ENABLE_LINUX_PROCESS AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	target_sources(anisthesia INTERFACE
+		src/linux_process.cpp
+	)
+
+	target_compile_definitions(anisthesia INTERFACE ANISTHESIA_HAS_LINUX_PROCESS)
 endif()
 
 if (ANISTHESIA_BUILD_TESTS)

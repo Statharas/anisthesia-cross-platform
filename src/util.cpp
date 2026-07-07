@@ -16,7 +16,8 @@ bool ReadFile(const std::string& path, std::string& data) {
   data.resize(static_cast<size_t>(file.tellg()));
   file.seekg(0, std::ios::beg);
 
-  file.read(&data.front(), data.size());
+  if (!data.empty())
+    file.read(&data.front(), data.size());
   file.close();
 
   return true;

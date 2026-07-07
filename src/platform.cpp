@@ -6,6 +6,10 @@
 #include <anisthesia/linux_mpris.hpp>
 #endif
 
+#if defined(ANISTHESIA_HAS_LINUX_PROCESS)
+#include <anisthesia/linux_process.hpp>
+#endif
+
 namespace anisthesia {
 
 bool GetResults(const std::vector<Player>& players, media_proc_t media_proc,
@@ -26,7 +30,16 @@ bool GetResults(const std::vector<Player>& players, media_proc_t media_proc,
   }
   return true;
 #elif defined(ANISTHESIA_HAS_LINUX_MPRIS)
-  return linux::mpris::GetResults(players, std::move(media_proc), results);
+  if (linux::mpris::GetResults(players, media_proc, results)) {
+    return true;
+  }
+#if defined(ANISTHESIA_HAS_LINUX_PROCESS)
+  return linux::process::GetResults(players, std::move(media_proc), results);
+#else
+  return false;
+#endif
+#elif defined(ANISTHESIA_HAS_LINUX_PROCESS)
+  return linux::process::GetResults(players, std::move(media_proc), results);
 #else
   (void)players;
   (void)media_proc;
